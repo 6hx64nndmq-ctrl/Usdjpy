@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="JPY Signal">
+<title>USDJPY Signal</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #03070a;
+  --surface: #080f14;
+  --border: #0f1f2a;
+  --border2: #162533;
+  --text: #a8c4d4;
+  --dim: #334d5c;
+  --bright: #d4eaf5;
+  --buy: #00ffaa;
+  --sell: #ff2255;
+  --warn: #ffaa00;
+  --tp: #00e5ff;
+  --sl: #ff6b35;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'DM Mono', monospace;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.06) 2px, rgba(0,0,0,0.06) 4px);
+  pointer-events: none;
+  z-index: 999;
+}
+.wrap { max-width: 420px; margin: 0 auto; padding: 16px 14px 60px; position: relative; z-index: 1; }
+
+/* HEADER */
+header {
+display: flex; align-items: center; justify-content: space-between;
+margin-bottom: 18px; padding-bottom: 12px; border-bottom: 1px solid var(–border2);
+}
+.logo { font-family: ‘Bebas Neue’, sans-serif; font-size: 22px; letter-spacing: 4px; color: var(–bright); }
+.logo em { color: var(–buy); font-style: normal; }
+.live-pill {
+display: flex; align-items: center; gap: 6px; font-size: 10px;
+letter-spacing: 2px; color: var(–dim); border: 1px solid var(–border2);
+padding: 4px 10px; border-radius: 20px;
+}
+.dot { width: 6px; height: 6px; border-radius: 50%; background: var(–dim); transition: background 0.3s; }
+.dot.live { background: var(–buy); animation: blink 1.5s infinite; }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.2} }
+
+/* MAIN SIGNAL BOX */
+.signal-box {
+border: 1px solid var(–border2); border-radius: 2px; padding: 24px 20px 20px;
+text-align: center; margin-bottom: 10px; position: relative; overflow: hidden;
+background: var(–surface); transition: border-color 0.4s;
+}
+.signal-box::before {
+content: ‘’; position: absolute; inset: 0; opacity: 0; transition: opacity 0.5s; pointer-events: none;
+}
+.signal-box.buy  { border-color: var(–buy); }
+.signal-box.buy::before  { background: radial-gradient(ellipse at 50% 0%, rgba(0,255,170,0.07), transparent 70%); opacity: 1; }
+.signal-box.sell { border-color: var(–sell); }
+.signal-box.sell::before { background: radial-gradient(ellipse at 50% 0%, rgba(255,34,85,0.07), transparent 70%); opacity: 1; }
+.signal-box.warn { border-color: var(–warn); }
+.signal-box.warn::before { background: radial-gradient(ellipse at 50% 0%, rgba(255,170,0,0.07), transparent 70%); opacity: 1; }
+
+.signal-word {
+font-family: ‘Bebas Neue’, sans-serif; font-size: 76px; line-height: 1;
+letter-spacing: 8px; color: var(–dim); transition: color 0.4s, text-shadow 0.4s;
+}
+.signal-box.buy  .signal-word { color: var(–buy);  text-shadow: 0 0 50px rgba(0,255,170,0.4); }
+.signal-box.sell .signal-word { color: var(–sell); text-shadow: 0 0 50px rgba(255,34,85,0.4); }
+.signal-box.warn .signal-word { color: var(–warn); text-shadow: 0 0 30px rgba(255,170,0,0.3); }
+
+.signal-sub { font-size: 10px; letter-spacing: 3px; color: var(–dim); margin-top: 6px; }
+.signal-box.buy  .signal-sub { color: rgba(0,255,170,0.6); }
+.signal-box.sell .signal-sub { color: rgba(255,34,85,0.6); }
+.signal-box.warn .signal-sub { color: rgba(255,170,0,0.6); }
+
+.score-row { display: flex; justify-content: center; gap: 20px; margin-top: 12px; font-size: 11px; color: var(–dim); }
+.score-row span { color: var(–bright); font-size: 15px; }
+
+/* ═══ TRADE PLAN BOX ═══ */
+.trade-plan {
+display: none;
+border-radius: 2px;
+margin-bottom: 10px;
+overflow: hidden;
+border: 1px solid var(–border2);
+}
+.trade-plan.visible { display: block; }
+
+.tp-header {
+padding: 10px 14px;
+font-size: 10px;
+letter-spacing: 3px;
+font-weight: 500;
+display: flex;
+align-items: center;
+gap: 8px;
+}
+.trade-plan.buy-plan  .tp-header { background: rgba(0,255,170,0.08); color: var(–buy); border-bottom: 1px solid rgba(0,255,170,0.15); }
+.trade-plan.sell-plan .tp-header { background: rgba(255,34,85,0.08);  color: var(–sell); border-bottom: 1px solid rgba(255,34,85,0.15); }
+
+.tp-rows { background: var(–surface); }
+
+.tp-row {
+display: flex;
+align-items: center;
+justify-content: space-between;
+padding: 12px 14px;
+border-bottom: 1px solid var(–border);
+}
+.tp-row:last-child { border-bottom: none; }
+
+.tp-label { font-size: 10px; letter-spacing: 2px; color: var(–dim); }
+.tp-val   { font-family: ‘Bebas Neue’, sans-serif; font-size: 22px; letter-spacing: 2px; }
+
+.tp-entry { color: var(–bright); }
+.tp-sl    { color: var(–sl); }
+.tp-tp1   { color: var(–tp); }
+.tp-tp2   { color: var(–buy); }
+
+.tp-note {
+padding: 10px 14px;
+font-size: 9px;
+color: var(–dim);
+line-height: 1.7;
+letter-spacing: 1px;
+border-top: 1px solid var(–border);
+background: var(–surface);
+}
+
+/* RR BADGE */
+.rr-badge {
+display: inline-flex; align-items: center; gap: 6px;
+padding: 4px 10px; border-radius: 20px; font-size: 10px; letter-spacing: 2px;
+background: rgba(0,229,255,0.08); color: var(–tp); border: 1px solid rgba(0,229,255,0.2);
+}
+
+/* AGREEMENT */
+.agreement-badge {
+display: flex; align-items: center; justify-content: center; gap: 8px;
+margin-bottom: 10px; padding: 10px; border: 1px solid var(–border2);
+border-radius: 2px; background: var(–surface); font-size: 11px;
+letter-spacing: 1px; color: var(–dim); transition: border-color 0.3s;
+}
+.agreement-badge.agree { border-color: var(–buy); color: var(–buy); }
+.agreement-badge.disagree { border-color: var(–sell); color: var(–sell); }
+
+/* PROGRESS */
+.progress-wrap {
+margin-bottom: 10px; background: var(–surface); border: 1px solid var(–border2);
+border-radius: 2px; padding: 12px 14px;
+}
+.progress-label { display: flex; justify-content: space-between; font-size: 10px; color: var(–dim); letter-spacing: 1px; margin-bottom: 8px; }
+.progress-track { height: 4px; background: var(–border2); border-radius: 2px; overflow: hidden; }
+.progress-fill { height: 100%; border-radius: 2px; transition: width 0.5s ease, background 0.3s; background: var(–dim); }
+
+/* GRID */
+.section-label { font-size: 9px; letter-spacing: 3px; color: var(–dim); margin-bottom: 8px; margin-top: 12px; }
+.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 6px; }
+.card {
+background: var(–surface); border: 1px solid var(–border2); border-radius: 2px;
+padding: 10px 12px; transition: border-color 0.3s; position: relative;
+}
+.card.bull { border-color: rgba(0,255,170,0.35); }
+.card.bear { border-color: rgba(255,34,85,0.35); }
+.card.special { border-left: 2px solid #ffdd44; }
+.card-name { font-size: 10px; letter-spacing: 1px; color: var(–dim); }
+.card-pct { font-family: ‘Bebas Neue’, sans-serif; font-size: 20px; letter-spacing: 1px; color: var(–dim); transition: color 0.3s; margin-top: 2px; }
+.card.bull .card-pct { color: var(–buy); }
+.card.bear .card-pct { color: var(–sell); }
+.card-price { font-size: 9px; color: var(–dim); margin-top: 1px; }
+.card-weight { position: absolute; top: 6px; right: 8px; font-size: 8px; color: var(–dim); letter-spacing: 1px; }
+
+/* CONTROLS */
+.controls { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 14px; }
+.btn {
+padding: 13px; border: 1px solid var(–border2); background: var(–surface);
+color: var(–text); font-family: ‘DM Mono’, monospace; font-size: 11px;
+letter-spacing: 2px; border-radius: 2px; cursor: pointer; text-transform: uppercase; transition: all 0.2s;
+}
+.btn:active { transform: scale(0.97); }
+.btn.on { background: var(–buy); color: #000; border-color: var(–buy); font-weight: 600; }
+.btn.primary { border-color: var(–text); color: var(–bright); }
+
+.interval-row {
+display: flex; align-items: center; justify-content: space-between; margin-top: 8px;
+padding: 10px 14px; background: var(–surface); border: 1px solid var(–border2); border-radius: 2px;
+font-size: 11px; color: var(–dim);
+}
+.interval-row .adj { display: flex; align-items: center; gap: 10px; }
+.interval-row button {
+background: var(–border2); border: none; color: var(–text);
+width: 26px; height: 26px; border-radius: 2px; font-size: 14px; cursor: pointer;
+}
+
+.footer-info { text-align: center; font-size: 9px; color: var(–dim); letter-spacing: 2px; margin-top: 14px; }
+
+/* FLASH */
+.flash {
+display: none; position: fixed; top: 0; left: 0; right: 0; padding: 18px;
+text-align: center; font-family: ‘Bebas Neue’, sans-serif; font-size: 20px;
+letter-spacing: 4px; z-index: 1000; animation: slideIn 0.3s ease;
+}
+.flash.buy  { background: var(–buy);  color: #000; }
+.flash.sell { background: var(–sell); color: #fff; }
+@keyframes slideIn { from{transform:translateY(-100%)} to{transform:translateY(0)} }
+
+.err {
+background: rgba(255,34,85,0.08); border: 1px solid rgba(255,34,85,0.2);
+border-radius: 2px; padding: 10px 12px; font-size: 10px; color: var(–sell);
+margin-bottom: 10px; display: none; line-height: 1.6;
+}
+</style>
+
+</head>
+<body>
+
+<div class="flash" id="flash"></div>
+
+<div class="wrap">
+
+  <header>
+    <div class="logo">USD<em>JPY</em> · SIGNAL</div>
+    <div class="live-pill">
+      <span class="dot" id="dot"></span>
+      <span id="liveText">IDLE</span>
+    </div>
+  </header>
+
+  <!-- MAIN SIGNAL -->
+
+  <div class="signal-box" id="sigBox">
+    <div class="signal-word" id="sigWord">SCAN</div>
+    <div class="signal-sub" id="sigSub">waiting for data</div>
+    <div class="score-row" id="scoreRow"></div>
+  </div>
+
+  <!-- TRADE PLAN — shown only on signal -->
+
+  <div class="trade-plan" id="tradePlan">
+    <div class="tp-header">
+      <span id="tpTitle">📋 TRADE PLAN</span>
+      <span class="rr-badge" id="rrBadge">R:R —</span>
+    </div>
+    <div class="tp-rows">
+      <div class="tp-row">
+        <span class="tp-label">ENTRY (MARKET)</span>
+        <span class="tp-val tp-entry" id="tpEntry">--</span>
+      </div>
+      <div class="tp-row">
+        <span class="tp-label">STOP LOSS</span>
+        <span class="tp-val tp-sl" id="tpSL">--</span>
+      </div>
+      <div class="tp-row">
+        <span class="tp-label">TAKE PROFIT 1</span>
+        <span class="tp-val tp-tp1" id="tpTP1">--</span>
+      </div>
+      <div class="tp-row">
+        <span class="tp-label">TAKE PROFIT 2</span>
+        <span class="tp-val tp-tp2" id="tpTP2">--</span>
+      </div>
+    </div>
+    <div class="tp-note" id="tpNote"></div>
+  </div>
+
+  <!-- US10Y/DXY AGREEMENT -->
+
+  <div class="agreement-badge" id="agreeBadge">
+    <span>⚡</span>
+    <span id="agreeText">US10Y + DXY: UNKNOWN</span>
+  </div>
+
+  <!-- PROGRESS -->
+
+  <div class="progress-wrap">
+    <div class="progress-label">
+      <span>ALIGNMENT</span>
+      <span id="progLabel">-- / 11</span>
+    </div>
+    <div class="progress-track">
+      <div class="progress-fill" id="progFill" style="width:0%"></div>
+    </div>
+  </div>
+
+  <div class="err" id="errBox"></div>
+
+  <!-- USD SIDE -->
+
+  <div class="section-label">USD SIDE</div>
+  <div class="grid">
+    <div class="card" id="c-DXY"><span class="card-weight">W:3</span><div class="card-name">DXY</div><div class="card-pct" id="p-DXY">--%</div><div class="card-price" id="v-DXY">--</div></div>
+    <div class="card special" id="c-US10Y"><span class="card-weight">W:3★</span><div class="card-name">US10Y</div><div class="card-pct" id="p-US10Y">--%</div><div class="card-price" id="v-US10Y">--</div></div>
+    <div class="card" id="c-US02Y"><span class="card-weight">W:2</span><div class="card-name">US02Y</div><div class="card-pct" id="p-US02Y">--%</div><div class="card-price" id="v-US02Y">--</div></div>
+    <div class="card" id="c-USDEUR"><span class="card-weight">W:1</span><div class="card-name">USD/EUR</div><div class="card-pct" id="p-USDEUR">--%</div><div class="card-price" id="v-USDEUR">--</div></div>
+    <div class="card" id="c-USDCHF"><span class="card-weight">W:1</span><div class="card-name">USD/CHF</div><div class="card-pct" id="p-USDCHF">--%</div><div class="card-price" id="v-USDCHF">--</div></div>
+    <div class="card" id="c-US500"><span class="card-weight">W:2</span><div class="card-name">US500</div><div class="card-pct" id="p-US500">--%</div><div class="card-price" id="v-US500">--</div></div>
+  </div>
+
+  <!-- JPY SIDE -->
+
+  <div class="section-label">JPY / RISK SIDE</div>
+  <div class="grid">
+    <div class="card" id="c-USDJPY"><span class="card-weight">W:2</span><div class="card-name">USD/JPY</div><div class="card-pct" id="p-USDJPY">--%</div><div class="card-price" id="v-USDJPY">--</div></div>
+    <div class="card" id="c-AUDJPY"><span class="card-weight">W:2</span><div class="card-name">AUD/JPY</div><div class="card-pct" id="p-AUDJPY">--%</div><div class="card-price" id="v-AUDJPY">--</div></div>
+    <div class="card" id="c-GBPJPY"><span class="card-weight">W:2</span><div class="card-name">GBP/JPY</div><div class="card-pct" id="p-GBPJPY">--%</div><div class="card-price" id="v-GBPJPY">--</div></div>
+    <div class="card" id="c-XAUUSD"><span class="card-weight">W:3</span><div class="card-name">GOLD (inv)</div><div class="card-pct" id="p-XAUUSD">--%</div><div class="card-price" id="v-XAUUSD">--</div></div>
+    <div class="card" id="c-VIX"><span class="card-weight">W:3</span><div class="card-name">VIX (inv)</div><div class="card-pct" id="p-VIX">--%</div><div class="card-price" id="v-VIX">--</div></div>
+  </div>
+
+  <!-- CONTROLS -->
+
+  <div class="controls">
+    <button class="btn primary" onclick="fetchAll()">↺ REFRESH</button>
+    <button class="btn" id="autoBtn" onclick="toggleAuto()">AUTO OFF</button>
+  </div>
+  <div class="interval-row">
+    <span>REFRESH EVERY</span>
+    <div class="adj">
+      <button onclick="adjInt(-30)">−</button>
+      <span id="intVal">60s</span>
+      <button onclick="adjInt(30)">+</button>
+    </div>
+  </div>
+  <div class="footer-info" id="lastUp">NOT YET FETCHED</div>
+
+</div>
+
+<script>
+let intervalSecs = 60, autoTimer = null, autoOn = false, lastSignal = '', data = {};
+
+const indicators = [
+  { id:'DXY',    weight:3, invert:false },
+  { id:'US10Y',  weight:3, invert:false, special:true },
+  { id:'US02Y',  weight:2, invert:false },
+  { id:'USDEUR', weight:1, invert:false },
+  { id:'USDCHF', weight:1, invert:false },
+  { id:'US500',  weight:2, invert:false },
+  { id:'USDJPY', weight:2, invert:false },
+  { id:'AUDJPY', weight:2, invert:false },
+  { id:'GBPJPY', weight:2, invert:false },
+  { id:'XAUUSD', weight:3, invert:true },
+  { id:'VIX',    weight:3, invert:true },
+];
+
+async function fetchForex(base, quote) {
+  try {
+    const r1 = await fetch(`https://api.frankfurter.app/latest?from=${base}&to=${quote}`);
+    const d1 = await r1.json();
+    const cur = d1.rates[quote];
+    const prev = new Date(); prev.setDate(prev.getDate()-1);
+    const ds = prev.toISOString().split('T')[0];
+    const r2 = await fetch(`https://api.frankfurter.app/${ds}?from=${base}&to=${quote}`);
+    const d2 = await r2.json();
+    return { current: cur, prev: d2.rates[quote] };
+  } catch { return null; }
+}
+
+async function fetchStooq(ticker) {
+  try {
+    const r = await fetch(`https://stooq.com/q/l/?s=${ticker}&f=sd2t2ohlcv&h&e=csv`);
+    const t = await r.text();
+    const lines = t.trim().split('\n');
+    if (lines.length < 2) return null;
+    const p = lines[1].split(',');
+    return { current: parseFloat(p[5]), prev: parseFloat(p[3]) };
+  } catch { return null; }
+}
+
+async function fetchAll() {
+  setStatus('loading'); showErr('');
+  const fetches = {
+    DXY:    fetchStooq('dxy'),
+    US10Y:  fetchStooq('10ust.b'),
+    US02Y:  fetchStooq('2ust.b'),
+    USDEUR: fetchForex('USD','EUR'),
+    USDCHF: fetchForex('USD','CHF'),
+    USDJPY: fetchForex('USD','JPY'),
+    AUDJPY: fetchForex('AUD','JPY'),
+    GBPJPY: fetchForex('GBP','JPY'),
+    XAUUSD: fetchForex('XAU','USD'),
+    VIX:    fetchStooq('^vix'),
+    US500:  fetchStooq('spx'),
+  };
+  const results = await Promise.allSettled(Object.entries(fetches).map(async ([k,p])=>[k,await p]));
+  let anyFail = false;
+  results.forEach(r => {
+    if (r.status==='fulfilled') { const [k,v]=r.value; data[k]=v; if(!v) anyFail=true; }
+  });
+  if (anyFail) showErr('⚠ Some data unavailable. Markets may be closed or API rate limited.');
+  updateUI();
+  document.getElementById('lastUp').textContent = 'UPDATED: '+new Date().toLocaleTimeString();
+  setStatus('live');
+}
+
+function updateUI() {
+  let bullCount=0, bearCount=0;
+  const pctMap = {};
+
+  indicators.forEach(({id, weight, invert}) => {
+    const d = data[id];
+    const card = document.getElementById('c-'+id);
+    const pctEl = document.getElementById('p-'+id);
+    const valEl = document.getElementById('v-'+id);
+    if (!d||!d.current||!d.prev) {
+      pctEl.textContent='--%';
+      card.className='card'+(id==='US10Y'?' special':'');
+      return;
+    }
+    const rawPct = ((d.current-d.prev)/d.prev)*100;
+    const effectivePct = invert ? -rawPct : rawPct;
+    pctMap[id] = rawPct;
+    const sign = rawPct>=0?'+':'';
+    pctEl.textContent = sign+rawPct.toFixed(2)+'%';
+    valEl.textContent = d.current>10 ? d.current.toFixed(3) : d.current.toFixed(5);
+    let cls = 'card'+(id==='US10Y'?' special':'');
+    if (effectivePct>0) { cls+=' bull'; bullCount++; }
+    else if (effectivePct<0) { cls+=' bear'; bearCount++; }
+    card.className = cls;
+  });
+
+  // DXY / US10Y agreement
+  const dxyPct = pctMap['DXY'], us10Pct = pctMap['US10Y'];
+  const badge = document.getElementById('agreeBadge');
+  const agreeText = document.getElementById('agreeText');
+  if (dxyPct!==undefined && us10Pct!==undefined) {
+    const agree = (dxyPct>0&&us10Pct>0)||(dxyPct<0&&us10Pct<0);
+    badge.className = 'agreement-badge '+(agree?'agree':'disagree');
+    agreeText.textContent = agree
+      ? `US10Y + DXY ALIGNED — ${dxyPct>0?'BOTH BULLISH ✓':'BOTH BEARISH ✓'}`
+      : 'US10Y + DXY CONFLICT — SIGNAL WEAKENED ✗';
+  }
+
+  // Progress
+  const total = indicators.length;
+  const fill = document.getElementById('progFill');
+  const maxCount = Math.max(bullCount, bearCount);
+  fill.style.width = (maxCount/total*100)+'%';
+  fill.style.background = bullCount>=9?'var(--buy)':bearCount>=9?'var(--sell)':'var(--warn)';
+  document.getElementById('progLabel').textContent = `${bullCount} BULL · ${bearCount} BEAR · ${total} TOTAL`;
+
+  // Signal
+  const sigBox=document.getElementById('sigBox');
+  const sigWord=document.getElementById('sigWord');
+  const sigSub=document.getElementById('sigSub');
+  const scoreRow=document.getElementById('scoreRow');
+  let newSignal='neutral';
+
+  if (bullCount>=9) {
+    newSignal='buy';
+    sigBox.className='signal-box buy';
+    sigWord.textContent='BUY';
+    sigSub.textContent=`${bullCount}/11 INDICATORS BULLISH`;
+    scoreRow.innerHTML=`ALIGNMENT <span>${bullCount}/11</span>`;
+    buildTradePlan('buy');
+  } else if (bearCount>=9) {
+    newSignal='sell';
+    sigBox.className='signal-box sell';
+    sigWord.textContent='SELL';
+    sigSub.textContent=`${bearCount}/11 INDICATORS BEARISH`;
+    scoreRow.innerHTML=`ALIGNMENT <span>${bearCount}/11</span>`;
+    buildTradePlan('sell');
+  } else if (maxCount>=7) {
+    newSignal='near';
+    sigBox.className='signal-box warn';
+    sigWord.textContent='NEAR';
+    sigSub.textContent=`${maxCount}/11 — NEED ${9-maxCount} MORE`;
+    scoreRow.innerHTML=`BULL <span>${bullCount}</span> · BEAR <span>${bearCount}</span>`;
+    document.getElementById('tradePlan').className='trade-plan';
+  } else {
+    sigBox.className='signal-box';
+    sigWord.textContent='WAIT';
+    sigSub.textContent='NO CLEAR BIAS YET';
+    scoreRow.innerHTML=`BULL <span>${bullCount}</span> · BEAR <span>${bearCount}</span>`;
+    document.getElementById('tradePlan').className='trade-plan';
+  }
+
+  if ((newSignal==='buy'||newSignal==='sell') && newSignal!==lastSignal) {
+    fireAlert(newSignal, newSignal==='buy'?bullCount:bearCount);
+  }
+  lastSignal=newSignal;
+}
+
+function buildTradePlan(direction) {
+  const usdJpyData = data['USDJPY'];
+  if (!usdJpyData || !usdJpyData.current) return;
+
+  const price = usdJpyData.current;
+  const plan = document.getElementById('tradePlan');
+  const tpTitle = document.getElementById('tpTitle');
+  const rrBadge = document.getElementById('rrBadge');
+  const tpNote = document.getElementById('tpNote');
+
+  // Risk parameters: 30 pip SL, TP1=30 pips (1:1), TP2=60 pips (1:2)
+  const pipSize = 0.01; // USDJPY pip
+  const slPips = 30;
+  const tp1Pips = 30;
+  const tp2Pips = 60;
+
+  let entry, sl, tp1, tp2, note;
+
+  if (direction === 'buy') {
+    entry = price;
+    sl   = price - (slPips * pipSize);
+    tp1  = price + (tp1Pips * pipSize);
+    tp2  = price + (tp2Pips * pipSize);
+    plan.className = 'trade-plan visible buy-plan';
+    tpTitle.textContent = '📋 BUY TRADE PLAN';
+    note = `Enter LONG at market price. Set SL ${slPips} pips below entry to protect against reversal. Move SL to breakeven once TP1 is hit. Let remainder run to TP2. Only trade during London or NY session.`;
+  } else {
+    entry = price;
+    sl   = price + (slPips * pipSize);
+    tp1  = price - (tp1Pips * pipSize);
+    tp2  = price - (tp2Pips * pipSize);
+    plan.className = 'trade-plan visible sell-plan';
+    tpTitle.textContent = '📋 SELL TRADE PLAN';
+    note = `Enter SHORT at market price. Set SL ${slPips} pips above entry to protect against reversal. Move SL to breakeven once TP1 is hit. Let remainder run to TP2. Only trade during London or NY session.`;
+  }
+
+  document.getElementById('tpEntry').textContent = entry.toFixed(3);
+  document.getElementById('tpSL').textContent    = sl.toFixed(3);
+  document.getElementById('tpTP1').textContent   = tp1.toFixed(3);
+  document.getElementById('tpTP2').textContent   = tp2.toFixed(3);
+  rrBadge.textContent = 'R:R 1:1 → 1:2';
+  tpNote.textContent = note;
+}
+
+function fireAlert(type, count) {
+  const flash = document.getElementById('flash');
+  flash.className='flash '+type;
+  flash.textContent = type==='buy'
+    ? `🟢 BUY — ${count}/11 ALIGNED — CHECK TRADE PLAN`
+    : `🔴 SELL — ${count}/11 ALIGNED — CHECK TRADE PLAN`;
+  flash.style.display='block';
+  if (navigator.vibrate) navigator.vibrate([300,100,300,100,300]);
+  if (Notification.permission==='granted') {
+    new Notification('USDJPY '+type.toUpperCase()+' SIGNAL', {
+      body: `${count}/11 indicators aligned. Open app for entry, SL & TP levels.`
+    });
+  }
+  setTimeout(()=>flash.style.display='none', 7000);
+}
+
+function setStatus(s) {
+  const dot=document.getElementById('dot'), txt=document.getElementById('liveText');
+  if (s==='live'){dot.className='dot live';txt.textContent='LIVE';}
+  else{dot.className='dot';txt.textContent='LOADING';}
+}
+
+function showErr(msg) {
+  const el=document.getElementById('errBox');
+  el.textContent=msg; el.style.display=msg?'block':'none';
+}
+
+function toggleAuto() {
+  autoOn=!autoOn;
+  const btn=document.getElementById('autoBtn');
+  if (autoOn) {
+    btn.textContent='AUTO ON'; btn.className='btn on';
+    autoTimer=setInterval(fetchAll,intervalSecs*1000);
+    if (Notification.permission==='default') Notification.requestPermission();
+  } else {
+    btn.textContent='AUTO OFF'; btn.className='btn';
+    clearInterval(autoTimer);
+  }
+}
+
+function adjInt(d) {
+  intervalSecs=Math.max(30,Math.min(300,intervalSecs+d));
+  document.getElementById('intVal').textContent=intervalSecs+'s';
+  if (autoOn){clearInterval(autoTimer);autoTimer=setInterval(fetchAll,intervalSecs*1000);}
+}
+
+fetchAll();
+</script>
+
+</body>
+</html>
